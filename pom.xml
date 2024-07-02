@@ -8,8 +8,8 @@
 		<version>2.7.9</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
-	<groupId>ru.yandex.practicum</groupId>
-	<artifactId>catsgram</artifactId>
+	<groupId>metalmarket</groupId>
+	<artifactId>fence-counter</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>fence-counter</name>
 	<description>Программа для расчета стоимости заборов</description>
