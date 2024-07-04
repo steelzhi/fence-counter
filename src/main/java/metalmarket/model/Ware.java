@@ -1,15 +1,13 @@
-/*
+
 package metalmarket.model;
 
 import lombok.*;
 
 @AllArgsConstructor
 @NoArgsConstructor
-@RequiredArgsConstructor
 @Getter
-@Setter
-public class Goods {
+public class Ware {
    private String id;
-   private int quantity;
+   private double quantity;
 }
-*/
+

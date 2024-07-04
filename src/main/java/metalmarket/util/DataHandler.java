@@ -1,8 +1,12 @@
 package metalmarket.util;
 
 import lombok.NoArgsConstructor;
+import metalmarket.dto.WareDto;
+import metalmarket.enums.City;
+import metalmarket.model.Ware;
 
 import java.io.*;
+import java.lang.reflect.Field;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.charset.Charset;
@@ -11,10 +15,13 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
 @NoArgsConstructor
-public class InputHandler {
-    private static List<String> goodsNames = new ArrayList<>();
+public class DataHandler {
+    private static List<String> waresNames = new ArrayList<>();
+    private static Map<String, WareDto> wareDtoMap = new TreeMap<>();
     private long MILLISECONDS_IN_ONE_DAY = 86_400_000;
 
     public void startHandling(long firstDelay) {
@@ -42,55 +49,38 @@ public class InputHandler {
         mainThread.start();
     }
 
-    public static void updateFileWithGoods() throws IOException {
-        String fileUrl = "https://metal-market.ru/upload/www_tovar.csv";
-        URL url = new URL(fileUrl);
-        URLConnection urlConnection = url.openConnection();
-        String fileName = "C:\\dev\\Работа\\Расчет заборов\\Необработанные товары.csv";
-        String fileWithLastUpdateDateTime = "Последняя дата скачивания файла с товаром.txt";
-        try (BufferedReader bufferedReader = new BufferedReader(
-                new InputStreamReader(urlConnection.getInputStream(), Charset.forName("windows-1251")));
-             BufferedWriter bufferedWriter = new BufferedWriter(
-                     new OutputStreamWriter(new FileOutputStream(fileName), StandardCharsets.UTF_8))) {
-            String string;
-            addGoodsNames();
-            while ((string = bufferedReader.readLine()) != null) {
-                if (doesStringContainProduct(string, goodsNames)) {
-                    bufferedWriter.write(string);
-                    bufferedWriter.newLine();
-                }
-            }
-        }
-
-        try (BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(fileWithLastUpdateDateTime))) {
-            DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-            bufferedWriter.write(dateTimeFormatter.format(LocalDateTime.now()));
-        }
+    public static Map<String, WareDto> getWareDtoMap() {
+        return wareDtoMap;
     }
 
     private void handleInputFileAndSave() throws IOException {
-        String fileName = "C:\\dev\\Работа\\Расчет заборов\\Необработанные товары.csv";
-        List<String> unhandledGoods = getGoodsFromInitialFile(fileName);
-        List<List<String>> handledGoods = new ArrayList<>();
-        addCategoriesAndTitle(handledGoods);
-        for (String unhandledGood : unhandledGoods) {
-            if (unhandledGood.startsWith("\"3XTГЛВ")) {
-                System.out.println();
+        updateFileWithWaresOnLocalServer();
+        wareDtoMap.clear();
+        String fileName = Path.getPathOfUnhandledFile();
+        List<String> unhandledWares = getWaresFromFile(fileName);
+        List<List<String>> handledWares = new ArrayList<>();
+        addCategoriesAndTitle(handledWares);
+        for (String unhandledWare : unhandledWares) {
+            WareDto wareDto = getHandledWareDto(unhandledWare);
+            if (wareDto == null) {
+                continue;
             }
-            String handled = getHandledGoods(unhandledGood);
-            addHandledGoods(handledGoods, handled);
+            modifyWareDtoId(wareDto);
+            wareDtoMap.put(wareDto.getId(), wareDto);
+            String handledWareString = getStringWithAllWareParams(wareDto);
+            addHandledWareToList(handledWares, handledWareString, wareDto.getName());
         }
-        writeDataToFile(handledGoods);
+        writeDataToFile(handledWares);
 
         System.out.println();
     }
 
-    public static void writeDataToFile(List<List<String>> goods) throws IOException {
-        String fileName = "C:\\dev\\Работа\\Расчет заборов\\Обработанные товары.csv";
+    public static void writeDataToFile(List<List<String>> wares) throws IOException {
+        String fileName = Path.getPathOfHandledFile();
         try (BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(fileName))) {
-            for (List<String> list : goods) {
-                for (String good : list) {
-                    bufferedWriter.write(good);
+            for (List<String> list : wares) {
+                for (String ware : list) {
+                    bufferedWriter.write(ware);
                     bufferedWriter.newLine();
                 }
                 bufferedWriter.newLine();
@@ -98,37 +88,62 @@ public class InputHandler {
         }
     }
 
-    private void addHandledGoods(List<List<String>> handledGoods, String goods) {
-        String[] params = goods.split("\";\"");
-
-        if (params[1].startsWith("Профнастил")
-                || params[1].startsWith("Штакетник")
-                || params[1].startsWith("Сетка рабица")
-                || params[1].startsWith("Панель")
+    private void modifyWareDtoId(WareDto wareDto) {
+        String wareDtoName = wareDto.getName();
+        if (wareDtoName == null) {
+            System.out.println();
+        }
+        if (wareDtoName.startsWith("Профнастил")
+                || wareDtoName.startsWith("Штакетник")
+                || wareDtoName.startsWith("Сетка рабица")
+                || wareDtoName.startsWith("Панель")
         ) {
-            handledGoods.get(1).add("\"П-" + goods.substring(1));
-        } else if (params[1].startsWith("Столб")) {
-            handledGoods.get(2).add("\"Ст-" + goods.substring(1));
-        } else if (params[1].startsWith("Труба профильная")
-                || params[1].startsWith("Проволока вязальная")
+            wareDto.setId("П-" + wareDto.getId());
+        } else if (wareDtoName.startsWith("Столб")) {
+            wareDto.setId("Ст-" + wareDto.getId());
+        } else if (wareDtoName.startsWith("Труба профильная")
+                || wareDtoName.startsWith("Проволока вязальная")
         ) {
-            handledGoods.get(3).add("\"Н-" + goods.substring(1));
-        } else if (params[1].startsWith("Калитка")
-                || params[1].startsWith("Засов")
-                || params[1].startsWith("Соединитель проф.трубы")
-                || params[1].startsWith("Заглушки")
+            wareDto.setId("Н-" + wareDto.getId());
+        } else if (wareDtoName.startsWith("Калитка")
+                || wareDtoName.startsWith("Засов")
+                || wareDtoName.startsWith("Соединитель проф.трубы")
+                || wareDtoName.startsWith("Заглушки")
         ) {
-            handledGoods.get(4).add("\"Со-" + goods.substring(1));
-
+            wareDto.setId("Со-" + wareDto.getId());
         }
     }
 
-    private String getHandledGoods(String goods) {
-        String[] params = goods.substring(1, goods.length() - 1).split("\";\"");
+    private void addHandledWareToList(List<List<String>> handledWares, String handledWareString, String wareDtoName) {
+        if (wareDtoName.startsWith("Профнастил")
+                || wareDtoName.startsWith("Штакетник")
+                || wareDtoName.startsWith("Сетка рабица")
+                || wareDtoName.startsWith("Панель")
+        ) {
+            handledWares.get(1).add(handledWareString);
+        } else if (wareDtoName.startsWith("Столб")) {
+            handledWares.get(2).add(handledWareString);
+        } else if (wareDtoName.startsWith("Труба профильная")
+                || wareDtoName.startsWith("Проволока вязальная")
+        ) {
+            handledWares.get(3).add(handledWareString);
+        } else if (wareDtoName.startsWith("Калитка")
+                || wareDtoName.startsWith("Засов")
+                || wareDtoName.startsWith("Соединитель проф.трубы")
+                || wareDtoName.startsWith("Заглушки")
+        ) {
+            handledWares.get(4).add(handledWareString);
+        }
+    }
+
+    private static WareDto getHandledWareDto(String ware) {
+        String[] params = ware.substring(1, ware.length() - 1).split("\";\"");
         String[] outputParamsArray = new String[16];
         outputParamsArray[0] = params[0];
+        if (params[1].startsWith("Профнастил С21")) {
+            return null;
+        }
 
-        StringBuilder sb = new StringBuilder();
         if (params[1].startsWith("Профнастил") && !params[1].startsWith("Профнастил С21")) {
             outputParamsArray[1] = "Профнастил";
             String[] subParams = params[1].split(";");
@@ -137,12 +152,9 @@ public class InputHandler {
             outputParamsArray[6] = params[5].split("х")[1];
             outputParamsArray[7] = params[4].split("х")[0];
             outputParamsArray[8] = params[5].split("х")[0];
-            for (int i = 0; i < subParams[0].length(); i++) {
-                if (subParams[0].charAt(i) == '0') {
-                    outputParamsArray[9] = subParams[0].substring(i, i + 4);
-                    break;
-                }
-            }
+            int indexOfZero = subParams[0].indexOf('0');
+            outputParamsArray[9] = subParams[0].substring(indexOfZero, indexOfZero + 4);
+
             String trimmedNameString = subParams[2].trim();
             String[] subsubParams = trimmedNameString.split(" ");
             if (subsubParams.length == 1) {
@@ -214,7 +226,7 @@ public class InputHandler {
             } else {
                 outputParamsArray[2] = "профильный";
                 outputParamsArray[3] = subSubParams[5];
-                outputParamsArray[5] = subSubParams[4];
+                outputParamsArray[5] = subSubParams[4].substring(0, subSubParams[4].length() - 1);
                 outputParamsArray[9] = subParams[1];
                 outputParamsArray[10] = subParams[2].trim();
             }
@@ -273,15 +285,48 @@ public class InputHandler {
         outputParamsArray[13] = params[14];
         outputParamsArray[14] = params[15];
 
-        for (String outputParam : outputParamsArray) {
-            sb.append("\"");
-            if (outputParam != null) {
-                sb.append(outputParam);
-            }
-            sb.append("\";");
+        WareDto wareDto = new WareDto();
+        wareDto.setId(outputParamsArray[0]);
+        wareDto.setName(outputParamsArray[1]);
+        wareDto.setType(outputParamsArray[2]);
+        wareDto.setDimension(outputParamsArray[3]);
+        wareDto.setDiameter(outputParamsArray[4]);
+        if (outputParamsArray[5] != null && outputParamsArray[5] != "") {
+            wareDto.setHeightS(Double.parseDouble(outputParamsArray[5]));
         }
-        sb.deleteCharAt(sb.length() - 1);
-        return sb.toString();
+        if (outputParamsArray[6] != null && outputParamsArray[6] != "") {
+            wareDto.setHeightT(Double.parseDouble(outputParamsArray[6]));
+        }
+        if (outputParamsArray[7] != null && outputParamsArray[7] != "") {
+            wareDto.setWidthS(Double.parseDouble(outputParamsArray[7]));
+        }
+        if (outputParamsArray[8] != null && outputParamsArray[8] != "") {
+            wareDto.setWidthT(Double.parseDouble(outputParamsArray[8]));
+        }
+        if (outputParamsArray[9] != "") {
+            wareDto.setThickness(outputParamsArray[9].trim());
+        }
+        wareDto.setCover(outputParamsArray[10]);
+        if (outputParamsArray[11] != null && outputParamsArray[11] != "") {
+            wareDto.setPriceS(Double.parseDouble(outputParamsArray[11]));
+        }
+        if (outputParamsArray[12] != null && outputParamsArray[12] != "") {
+            wareDto.setPriceT(Double.parseDouble(outputParamsArray[12]));
+        }
+        if (outputParamsArray[13].equals("1")) {
+            wareDto.setAvailabilityS(true);
+        } else {
+            wareDto.setAvailabilityS(false);
+        }
+        if (outputParamsArray[14].equals("1")) {
+            wareDto.setAvailabilityT(true);
+        } else {
+            wareDto.setAvailabilityT(false);
+        }
+        wareDto.setComment(outputParamsArray[15]);
+        wareDtoMap.put(wareDto.getId(), wareDto);
+
+        return wareDto;
     }
 
     private void addCategoriesAndTitle(List<List<String>> listOfCategories) {
@@ -304,74 +349,107 @@ public class InputHandler {
         listOfCategories.add(related);
     }
 
-    public static void addGoodsNames() {
-        if (goodsNames.isEmpty()) {
-            goodsNames.add("Профнастил");
-            goodsNames.add("Штакетник");
-            goodsNames.add("Сетка стальная плет.");
-            goodsNames.add("Сетка оц. плет.");
-            goodsNames.add("Сетка плетен. полимер.");
-            goodsNames.add("Панели");
-            goodsNames.add("Столб");
-            goodsNames.add("Трубы проф. 40х20");
-            goodsNames.add("Проволока с терм.");
-            goodsNames.add("Проволока оцинк.с терм.");
-            goodsNames.add("Калитка");
-            goodsNames.add("Засов");
-            goodsNames.add("Соединитель проф.трубы");
-            goodsNames.add("Заглушки пластиковые");
+    private String getStringWithAllWareParams(WareDto wareDto) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(wareDto.getId());
+        sb.append("; ");
+        sb.append(wareDto.getName());
+        sb.append("; ");
+        if (wareDto.getType() != null) {
+            sb.append(wareDto.getType());
+        }
+        sb.append("; ");
+        if (wareDto.getDimension() != null) {
+            sb.append(wareDto.getDimension());
+        }
+        sb.append("; ");
+        if (wareDto.getDiameter() != null) {
+            sb.append(wareDto.getDiameter());
+        }
+        sb.append("; ");
+        if (wareDto.getHeightS() != 0) {
+            sb.append(wareDto.getHeightS());
+        }
+        sb.append("; ");
+        if (wareDto.getHeightT() != 0) {
+            sb.append(wareDto.getHeightT());
+        }
+        sb.append("; ");
+        if (wareDto.getWidthS() != 0) {
+            sb.append(wareDto.getWidthS());
+        }
+        sb.append("; ");
+        if (wareDto.getWidthT() != 0) {
+            sb.append(wareDto.getWidthT());
+        }
+        sb.append("; ");
+        sb.append(wareDto.getThickness());
+        sb.append("; ");
+        if (wareDto.getCover() != null) {
+            sb.append(wareDto.getCover());
+        }
+        sb.append("; ");
+        if (wareDto.getPriceS() != 0) {
+            sb.append(wareDto.getPriceS());
+        }
+        sb.append("; ");
+        if (wareDto.getPriceT() != 0) {
+            sb.append(wareDto.getPriceT());
+        }
+        sb.append("; ");
+        if (wareDto.isAvailabilityS()) {
+            sb.append("1");
+        } else {
+            sb.append("0");
+        }
+        sb.append("; ");
+        if (wareDto.isAvailabilityT()) {
+            sb.append("1");
+        } else {
+            sb.append("0");
+        }
+        sb.append("; ");
+        if (wareDto.getComment() != null) {
+            sb.append(wareDto.getComment());
+        } else {
+            sb.append("");
+        }
+        sb.append(";");
+
+        return sb.toString();
+    }
+
+    public static void addWaresNames() {
+        if (waresNames.isEmpty()) {
+            waresNames.add("Профнастил");
+            waresNames.add("Штакетник");
+            waresNames.add("Сетка стальная плет.");
+            waresNames.add("Сетка оц. плет.");
+            waresNames.add("Сетка плетен. полимер.");
+            waresNames.add("Панели");
+            waresNames.add("Столб");
+            waresNames.add("Трубы проф. 40х20");
+            waresNames.add("Проволока с терм.");
+            waresNames.add("Проволока оцинк.с терм.");
+            waresNames.add("Калитка");
+            waresNames.add("Засов");
+            waresNames.add("Соединитель проф.трубы");
+            waresNames.add("Заглушки пластиковые");
         }
     }
 
-    public static List<String> getGoodsNames() {
-        return goodsNames;
-    }
-
-    public static List<String> getGoodsFromInitialFile(String fileName) throws IOException {
-        List<String> goodsFromInitialFile = new ArrayList<>();
+    public static List<String> getWaresFromFile(String fileName) throws IOException {
+        List<String> wareFromFile = new ArrayList<>();
         try (BufferedReader bufferedReader = new BufferedReader(new FileReader(fileName));
         ) {
             String string;
-            addGoodsNames();
+            addWaresNames();
             while ((string = bufferedReader.readLine()) != null) {
-                goodsFromInitialFile.add(string);
+                wareFromFile.add(string);
             }
         }
 
-        return goodsFromInitialFile;
-    }
-
-    public static boolean doesStringContainProduct(String string, List<String> productNames) {
-        String[] params = string.split(";");
-        if (params.length == 1) {
-            return false;
-        }
-        String checkingPart = params[1].substring(1);
-        for (String productName : productNames) {
-            if (checkingPart.length() < productName.length()) {
-                continue;
-            }
-            if (checkingPart.startsWith(productName)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    public static LocalDateTime getLastDateTimeOfFileDownloading(String fileWithPreviousDownloadTime) throws IOException {
-        BufferedReader br = new BufferedReader(new FileReader(fileWithPreviousDownloadTime));
-        LocalDateTime lastDateTime = null;
-        String lastDateTimeString = br.readLine();
-        if (lastDateTimeString != null) {
-            lastDateTime = LocalDateTime.of(
-                    Integer.parseInt(lastDateTimeString.substring(0, 4)),
-                    Integer.parseInt(lastDateTimeString.substring(5, 7)),
-                    Integer.parseInt(lastDateTimeString.substring(8, 10)),
-                    0,
-                    0);
-        }
-
-        return lastDateTime;
+        return wareFromFile;
     }
 
     public static long getMilliSecondsBetweenNextUpdatingFileDTAndNow() {
@@ -401,4 +479,80 @@ public class InputHandler {
         }
         return delay;
     }
+
+    public static void setTotalQuantity(WareDto wareDto, Ware ware, City city) {
+        if (wareDto.getName().equals("Труба профильная")) {
+            double length = 0;
+            if (city == City.SAMARA) {
+                length = wareDto.getHeightS();
+            } else if (city == City.TOLYATTI) {
+                length = wareDto.getHeightT();
+            }
+            double totalLength = ((int) (ware.getQuantity() / length) + 1) * length;
+            wareDto.setQuantity(totalLength);
+        } else {
+            wareDto.setQuantity(ware.getQuantity());
+        }
+    }
+
+    public static void updateFileWithWaresOnLocalServer() throws IOException {
+        String fileUrl = Path.getUrlOfUnhandledFile();
+        URL url = new URL(fileUrl);
+        URLConnection urlConnection = url.openConnection();
+        String fileName = "C:\\dev\\Работа\\Расчет заборов\\Необработанные товары.csv";
+        String fileWithLastUpdateDateTime = "Последняя дата скачивания файла с товаром.txt";
+        try (BufferedReader bufferedReader = new BufferedReader(
+                new InputStreamReader(urlConnection.getInputStream(), Charset.forName("windows-1251")));
+             BufferedWriter bufferedWriter = new BufferedWriter(
+                     new OutputStreamWriter(new FileOutputStream(fileName), StandardCharsets.UTF_8))) {
+            String string;
+            addWaresNames();
+            while ((string = bufferedReader.readLine()) != null) {
+                if (doesStringContainWare(string, waresNames)) {
+                    bufferedWriter.write(string);
+                    bufferedWriter.newLine();
+                }
+            }
+        }
+
+        try (BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(fileWithLastUpdateDateTime))) {
+            DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+            bufferedWriter.write(dateTimeFormatter.format(LocalDateTime.now()));
+        }
+    }
+
+    public static boolean doesStringContainWare(String string, List<String> waresNames) {
+        String[] params = string.split(";");
+        if (params.length == 1) {
+            return false;
+        }
+        String checkingPart = params[1].substring(1);
+        for (String wareName : waresNames) {
+            if (checkingPart.length() < wareName.length()) {
+                continue;
+            }
+            if (checkingPart.startsWith(wareName)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+
+
+/*    public static LocalDateTime getLastDateTimeOfFileDownloading(String fileWithPreviousDownloadTime) throws IOException {
+        BufferedReader br = new BufferedReader(new FileReader(fileWithPreviousDownloadTime));
+        LocalDateTime lastDateTime = null;
+        String lastDateTimeString = br.readLine();
+        if (lastDateTimeString != null) {
+            lastDateTime = LocalDateTime.of(
+                    Integer.parseInt(lastDateTimeString.substring(0, 4)),
+                    Integer.parseInt(lastDateTimeString.substring(5, 7)),
+                    Integer.parseInt(lastDateTimeString.substring(8, 10)),
+                    0,
+                    0);
+        }
+
+        return lastDateTime;
+    }*/
 }

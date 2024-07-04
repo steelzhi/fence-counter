@@ -1,34 +1,43 @@
 package metalmarket.service;
 
 import lombok.RequiredArgsConstructor;
-import metalmarket.util.InputHandler;
+import metalmarket.enums.City;
+import metalmarket.model.Ware;
+import metalmarket.mapper.WaresMapper;
+import metalmarket.model.Count;
+import metalmarket.dto.WareDto;
+import metalmarket.util.DataHandler;
+import metalmarket.util.Path;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
-import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 public class QueryService {
 
-    public List<String> getAnswer() throws IOException {
-        List<String> goodsFromInitialFile;
-        /*String fileWithPreviousDownloadTime
-                = "C:\\dev\\Работа\\Расчет заборов\\Последняя дата скачивания файла с товаром.txt";
-        LocalDateTime lastDateTime = InputHandler.getLastDateTimeOfFileDownloading(fileWithPreviousDownloadTime);
+    public Count getCount(City city, List<Ware> wares) {
+        List<WareDto> wareList = new ArrayList<>();
+        double total = 0;
+        for (Ware ware : wares) {
+            Map<String, WareDto> wareDtoMap = DataHandler.getWareDtoMap();
+            WareDto wareDto = wareDtoMap.get(ware.getId());
+            Double price = null;
+            if (city == City.SAMARA) {
+                price = wareDto.getPriceS();
+            } else if (city == City.TOLYATTI) {
+                price = wareDto.getPriceT();
+            }
 
-        if (lastDateTime == null || lastDateTime.plusDays(1).isBefore(LocalDateTime.now())) {
-            InputHandler.updateFileWithGoods();
-            System.out.println("Файл с товарами обновлен на сервере");
-        } else {
-            System.out.println(
-                    "Прошло меньше суток с момента обновления csv-файла. Загрузка нового файла пока не требуется");
+            DataHandler.setTotalQuantity(wareDto, ware, city);
+            wareDto.setSum(price * wareDto.getQuantity());
+            wareList.add(wareDto);
+            total += wareDto.getSum();
         }
 
-        String fileName = "C:\\dev\\Работа\\Расчет заборов\\tovar.csv";*/
-        String fileName = "C:\\dev\\Работа\\Расчет заборов\\Обработанные товары.csv";
-        goodsFromInitialFile = InputHandler.getGoodsFromInitialFile(fileName);
-        return goodsFromInitialFile;
+        return new Count(wareList, total);
     }
 }
