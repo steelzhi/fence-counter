@@ -3,14 +3,11 @@ package metalmarket.service;
 import lombok.RequiredArgsConstructor;
 import metalmarket.enums.City;
 import metalmarket.model.Ware;
-import metalmarket.mapper.WaresMapper;
 import metalmarket.model.Count;
 import metalmarket.dto.WareDto;
 import metalmarket.util.DataHandler;
-import metalmarket.util.Path;
 import org.springframework.stereotype.Service;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;

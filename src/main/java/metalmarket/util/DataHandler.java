@@ -6,7 +6,6 @@ import metalmarket.enums.City;
 import metalmarket.model.Ware;
 
 import java.io.*;
-import java.lang.reflect.Field;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.charset.Charset;
@@ -56,7 +55,7 @@ public class DataHandler {
     private void handleInputFileAndSave() throws IOException {
         updateFileWithWaresOnLocalServer();
         wareDtoMap.clear();
-        String fileName = Path.getPathOfUnhandledFile();
+        String fileName = WareFilePath.getPathOfUnhandledFile();
         List<String> unhandledWares = getWaresFromFile(fileName);
         List<List<String>> handledWares = new ArrayList<>();
         addCategoriesAndTitle(handledWares);
@@ -76,7 +75,7 @@ public class DataHandler {
     }
 
     public static void writeDataToFile(List<List<String>> wares) throws IOException {
-        String fileName = Path.getPathOfHandledFile();
+        String fileName = WareFilePath.getPathOfHandledFile();
         try (BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(fileName))) {
             for (List<String> list : wares) {
                 for (String ware : list) {
@@ -90,9 +89,6 @@ public class DataHandler {
 
     private void modifyWareDtoId(WareDto wareDto) {
         String wareDtoName = wareDto.getName();
-        if (wareDtoName == null) {
-            System.out.println();
-        }
         if (wareDtoName.startsWith("Профнастил")
                 || wareDtoName.startsWith("Штакетник")
                 || wareDtoName.startsWith("Сетка рабица")
@@ -291,27 +287,31 @@ public class DataHandler {
         wareDto.setType(outputParamsArray[2]);
         wareDto.setDimension(outputParamsArray[3]);
         wareDto.setDiameter(outputParamsArray[4]);
-        if (outputParamsArray[5] != null && outputParamsArray[5] != "") {
+        if (outputParamsArray[5] != null && !outputParamsArray[5].isBlank()) {
             wareDto.setHeightS(Double.parseDouble(outputParamsArray[5]));
         }
-        if (outputParamsArray[6] != null && outputParamsArray[6] != "") {
+        if (outputParamsArray[6] != null && !outputParamsArray[6].isBlank()) {
             wareDto.setHeightT(Double.parseDouble(outputParamsArray[6]));
         }
-        if (outputParamsArray[7] != null && outputParamsArray[7] != "") {
+        if (outputParamsArray[7] != null && outputParamsArray[7].isBlank()) {
             wareDto.setWidthS(Double.parseDouble(outputParamsArray[7]));
         }
-        if (outputParamsArray[8] != null && outputParamsArray[8] != "") {
+        if (outputParamsArray[8] != null && !outputParamsArray[8].isBlank()) {
             wareDto.setWidthT(Double.parseDouble(outputParamsArray[8]));
         }
-        if (outputParamsArray[9] != "") {
+        if (outputParamsArray[9] != null && !outputParamsArray[9].isBlank()) {
             wareDto.setThickness(outputParamsArray[9].trim());
         }
         wareDto.setCover(outputParamsArray[10]);
-        if (outputParamsArray[11] != null && outputParamsArray[11] != "") {
+        if (outputParamsArray[11] != null && !outputParamsArray[11].isBlank()) {
             wareDto.setPriceS(Double.parseDouble(outputParamsArray[11]));
         }
-        if (outputParamsArray[12] != null && outputParamsArray[12] != "") {
-            wareDto.setPriceT(Double.parseDouble(outputParamsArray[12]));
+        if (outputParamsArray[12] != null && !outputParamsArray[12].isBlank()) {
+            try {
+                wareDto.setPriceT(Double.parseDouble(outputParamsArray[12]));
+            } catch (NumberFormatException e) {
+                System.out.println();
+            }
         }
         if (outputParamsArray[13].equals("1")) {
             wareDto.setAvailabilityS(true);
@@ -440,7 +440,7 @@ public class DataHandler {
 
     public static List<String> getWaresFromFile(String fileName) throws IOException {
         List<String> wareFromFile = new ArrayList<>();
-        try (BufferedReader bufferedReader = new BufferedReader(new FileReader(fileName));
+        try (BufferedReader bufferedReader = new BufferedReader(new FileReader(fileName, StandardCharsets.UTF_8))
         ) {
             String string;
             addWaresNames();
@@ -496,7 +496,7 @@ public class DataHandler {
     }
 
     public static void updateFileWithWaresOnLocalServer() throws IOException {
-        String fileUrl = Path.getUrlOfUnhandledFile();
+        String fileUrl = WareFilePath.getUrlOfUnhandledFile();
         URL url = new URL(fileUrl);
         URLConnection urlConnection = url.openConnection();
         String fileName = "C:\\dev\\Работа\\Расчет заборов\\Необработанные товары.csv";
