@@ -307,11 +307,7 @@ public class DataHandler {
             wareDto.setPriceS(Double.parseDouble(outputParamsArray[11]));
         }
         if (outputParamsArray[12] != null && !outputParamsArray[12].isBlank()) {
-            try {
-                wareDto.setPriceT(Double.parseDouble(outputParamsArray[12]));
-            } catch (NumberFormatException e) {
-                System.out.println();
-            }
+            wareDto.setPriceT(Double.parseDouble(outputParamsArray[12]));
         }
         if (outputParamsArray[13].equals("1")) {
             wareDto.setAvailabilityS(true);
@@ -537,22 +533,4 @@ public class DataHandler {
         }
         return false;
     }
-
-
-
-/*    public static LocalDateTime getLastDateTimeOfFileDownloading(String fileWithPreviousDownloadTime) throws IOException {
-        BufferedReader br = new BufferedReader(new FileReader(fileWithPreviousDownloadTime));
-        LocalDateTime lastDateTime = null;
-        String lastDateTimeString = br.readLine();
-        if (lastDateTimeString != null) {
-            lastDateTime = LocalDateTime.of(
-                    Integer.parseInt(lastDateTimeString.substring(0, 4)),
-                    Integer.parseInt(lastDateTimeString.substring(5, 7)),
-                    Integer.parseInt(lastDateTimeString.substring(8, 10)),
-                    0,
-                    0);
-        }
-
-        return lastDateTime;
-    }*/
 }

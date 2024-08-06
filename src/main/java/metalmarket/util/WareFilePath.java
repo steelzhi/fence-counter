@@ -1,7 +1,5 @@
 package metalmarket.util;
 
-import java.nio.file.Path;
-
 public class WareFilePath {
     private WareFilePath() {
     }
