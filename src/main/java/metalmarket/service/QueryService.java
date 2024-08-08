@@ -16,11 +16,11 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class QueryService {
 
-    public Count getCount(City city, List<Ware> wares) {
+    public Count getCountByQuantity(City city, List<Ware> wares) {
         List<WareDto> wareList = new ArrayList<>();
         double total = 0;
+        Map<String, WareDto> wareDtoMap = DataHandler.getWareDtoMap();
         for (Ware ware : wares) {
-            Map<String, WareDto> wareDtoMap = DataHandler.getWareDtoMap();
             WareDto wareDto = wareDtoMap.get(ware.getId());
             Double price = null;
             if (city == City.SAMARA) {
@@ -30,6 +30,28 @@ public class QueryService {
             }
 
             DataHandler.setTotalQuantity(wareDto, ware, city);
+            wareDto.setSum(price * wareDto.getQuantity());
+            wareList.add(wareDto);
+            total += wareDto.getSum();
+        }
+
+        return new Count(wareList, total);
+    }
+
+    public Count getCountByPerimeter(City city, List<String> wareIds, double perimeterLength) {
+        List<WareDto> wareList = new ArrayList<>();
+        double total = 0;
+        Map<String, WareDto> wareDtoMap = DataHandler.getWareDtoMap();
+        for (String wareId : wareIds) {
+            WareDto wareDto = wareDtoMap.get(wareId);
+            Double price = null;
+            if (city == City.SAMARA) {
+                price = wareDto.getPriceS();
+            } else if (city == City.TOLYATTI) {
+                price = wareDto.getPriceT();
+            }
+
+            DataHandler.setTotalQuantity(wareDto, perimeterLength, city);
             wareDto.setSum(price * wareDto.getQuantity());
             wareList.add(wareDto);
             total += wareDto.getSum();

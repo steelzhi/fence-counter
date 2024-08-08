@@ -152,8 +152,8 @@ public class DataHandler {
             outputParamsArray[9] = subParams[0].substring(indexOfZero, indexOfZero + 4);
 
             String trimmedNameString = subParams[2].trim();
-            String[] subsubParams = trimmedNameString.split(" ");
-            if (subsubParams.length == 1) {
+            String[] subSubParams = trimmedNameString.split(" ");
+            if (subSubParams.length == 1) {
                 outputParamsArray[10] = "Оцинкованный (неокрашенный)";
             } else {
                 int firstSpacePos = trimmedNameString.indexOf(' ');
@@ -293,7 +293,7 @@ public class DataHandler {
         if (outputParamsArray[6] != null && !outputParamsArray[6].isBlank()) {
             wareDto.setHeightT(Double.parseDouble(outputParamsArray[6]));
         }
-        if (outputParamsArray[7] != null && outputParamsArray[7].isBlank()) {
+        if (outputParamsArray[7] != null && !outputParamsArray[7].isBlank()) {
             wareDto.setWidthS(Double.parseDouble(outputParamsArray[7]));
         }
         if (outputParamsArray[8] != null && !outputParamsArray[8].isBlank()) {
@@ -488,6 +488,46 @@ public class DataHandler {
             wareDto.setQuantity(totalLength);
         } else {
             wareDto.setQuantity(ware.getQuantity());
+        }
+    }
+
+    public static void setTotalQuantity(WareDto wareDto, double perimeterLength, City city) {
+        Double width = null;
+        if (city == City.SAMARA) {
+            width = wareDto.getWidthS();
+        } else if (city == City.TOLYATTI) {
+            width = wareDto.getWidthT();
+        }
+
+        switch (wareDto.getName()) {
+            case "Профнастил":
+                // профнастил монтируется с нахлестом (~ 10 % от ширины)
+                wareDto.setQuantity(Math.round(perimeterLength / (width / 1_000 / 1.1) + 1));
+                break;
+            case "Штакетник":
+                wareDto.setQuantity(Math.round(perimeterLength / (width / 1_000) + 1));
+                break;
+            case "Сетка рабица":
+                wareDto.setQuantity(Math.round(perimeterLength / width + 1));
+                break;
+            case "Панель заборная":
+                wareDto.setQuantity(Math.round(perimeterLength / (width / 1_000) + 1));
+                break;
+            case "Столб":
+                wareDto.setQuantity(Math.round(perimeterLength / 3) + 1);
+                break;
+            // прожилины из труб монтируются в 2 ряда
+            case "Труба профильная":
+                double length = 0;
+                if (city == City.SAMARA) {
+                    length = wareDto.getHeightS();
+                } else if (city == City.TOLYATTI) {
+                    length = wareDto.getHeightT();
+                }
+                wareDto.setQuantity(Math.round(perimeterLength / length) * 2 + 1);
+                break;
+            default:
+                break;
         }
     }
 
