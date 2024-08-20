@@ -12,10 +12,9 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @NoArgsConstructor
 public class DataHandler {
@@ -27,6 +26,7 @@ public class DataHandler {
         Thread mainThread = new Thread(() -> {
             try {
                 handleInputFileAndSave();
+                cleanAllOldCalculations(CalculationsPath.getCalculationsTitleForCleaning());
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -72,6 +72,32 @@ public class DataHandler {
         writeDataToFile(handledWares);
 
         System.out.println();
+    }
+
+    private void cleanAllOldCalculations(String filenameBeginning) {
+        Set<File> calculationsToDelete = Stream.of(new File(CalculationsPath.getCalculationsDisk()).listFiles())
+                .filter(file -> !file.isDirectory())
+                .filter(file -> file.getName().startsWith(filenameBeginning))
+                .collect(Collectors.toSet());
+        for (File file : calculationsToDelete) {
+            String[] paramsOfYearMonthDay = file.getName().split(" ");
+            String dateString = paramsOfYearMonthDay[paramsOfYearMonthDay.length - 2];
+            String[] yearMonthDay = dateString.split("-");
+            String dayString = paramsOfYearMonthDay[paramsOfYearMonthDay.length - 1];
+            String[] hourMinuteSecond = dayString.substring(1, dayString.length() - 1).split("-");
+
+            LocalDateTime dateTimeOfFile = LocalDateTime.of(
+                    Integer.parseInt(yearMonthDay[0]),
+                    Integer.parseInt(yearMonthDay[1]),
+                    Integer.parseInt(yearMonthDay[2]),
+                    Integer.parseInt(hourMinuteSecond[0]),
+                    Integer.parseInt(hourMinuteSecond[1]));
+
+            if (dateTimeOfFile.plusDays(1).isBefore(LocalDateTime.now())) {
+                file.delete();
+            }
+        }
+
     }
 
     public static void writeDataToFile(List<List<String>> wares) throws IOException {
@@ -572,5 +598,16 @@ public class DataHandler {
             }
         }
         return false;
+    }
+
+    static String getDateTime() {
+        String localDateTimeString = LocalDateTime.now().toString();
+        String modifiedString = localDateTimeString.replace(":", "-")
+                .replace("T", " ")
+                .substring(0, localDateTimeString.length() - 10);
+        StringBuilder sb = new StringBuilder(modifiedString);
+        sb.insert(11, "(");
+        sb.append(")");
+        return sb.toString();
     }
 }

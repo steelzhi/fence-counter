@@ -35,7 +35,7 @@ public class QueryService {
             total += wareDto.getSum();
         }
 
-        return new Count(wareList, total);
+        return new Count(wareList, city, total, null);
     }
 
     public Count getCountByPerimeter(City city, List<String> wareIds, double perimeterLength) {
@@ -57,6 +57,6 @@ public class QueryService {
             total += wareDto.getSum();
         }
 
-        return new Count(wareList, total);
+        return new Count(wareList, city, total, null);
     }
 }
